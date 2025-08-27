@@ -22,9 +22,10 @@ To get the backend up and running perform the following...
     - NOTE: this file is in the backend folder you may need to cd
       into the correct directory
 
-3. The backend is now ready! For now....
-    - Once our API is needed you'll need to spin up a uvicorn server as well...
-    - To run (in the backend folder): python opencv_sandbox.py
+3. Start uvicorn:
+    - uvicorn api_init:app --reload
+    - NOTE: This starts the server not the image analysis (yet...)
+      to do that run: python opencv_sandbox.py
 
 ## Tips
 
