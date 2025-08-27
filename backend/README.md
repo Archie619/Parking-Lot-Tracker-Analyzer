@@ -15,7 +15,7 @@ To get the backend up and running perform the following...
     - If not created: python -m venv .venv
     - If activating:
         - Linux: source .venv/bin/activate
-        - Windows: .\.venv\Scripts\activate
+        - Windows: .\\.venv\Scripts\activate
 
 2. Install the requirements if not installed
     - pip install -r requirements.txt

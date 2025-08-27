@@ -7,10 +7,10 @@ parking data, parse it, and display it on a Dart frontend using the Flutter fram
 
 ## Authors
 
-Nathan Snyder
-Evan Oberneder
-Kayden Strecker
-Jessica Lei
+Nathan Snyder<br>
+Evan Oberneder<br>
+Kayden Strecker<br>
+Jessica Lei<br>
 Nadia Abdelmegid
 
 ## Contributing
