@@ -7,5 +7,6 @@ router = APIRouter()
 '''
 Example docstring (desc of function)
 '''
+@router.get('/example')
 def example(ex1: int, ex2: str):
     return ex1 + ex2
