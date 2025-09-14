@@ -1,6 +1,7 @@
 import cv2, numpy
 from math_functions import merge_lines, calc_intersects, calc_intersect_line_points
-from space_detection import calc_space_lines, prune_space_lines, build_spots
+from space_detection import (calc_space_lines, prune_space_lines, build_spots, 
+                             detect_fullness)
 
 # load an image, resizing it to an appropriate size
 img_w = 800
@@ -71,27 +72,7 @@ empty_lot = cv2.resize(empty_lot, (img_w, img_h))
 live_lot = cv2.imread('..\images\live_diag_PL2.jpg', 1)
 live_lot = cv2.resize(live_lot, (img_w, img_h))
 
-# subtract the empty lot from the live lot, gray scale for color
-# consistency
-subtracted_lot = cv2.absdiff(empty_lot, live_lot)
-gray_subtracted = cv2.cvtColor(subtracted_lot, cv2.COLOR_BGR2GRAY)
-
-# check spot detection zones for certain amount of changed
-# pixels; if over threshold, spot occupied
-spot_occupancy = []
-for spot in spots:
-    mask = numpy.zeros((img_h, img_w), dtype=numpy.uint8)
-    cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
-    isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
-
-    spot_area = cv2.countNonZero(mask)
-    changed_pixels = cv2.countNonZero(isolated_spot)
-    percent_filled = (changed_pixels / spot_area) * 100
-
-    if percent_filled > 20:
-        spot_occupancy.append(1)
-    else:
-        spot_occupancy.append(0)
+spot_occupancy = detect_fullness(empty_lot, live_lot, (img_h, img_w), spots)
 
 # after detection zone statuses are determined overlay the color
 # on the live image

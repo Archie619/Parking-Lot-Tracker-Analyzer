@@ -1,3 +1,5 @@
+import cv2, numpy
+
 '''
 Define parking space lines as:
     startpoint -> intersection point
@@ -192,3 +194,43 @@ def build_spots(space_lines: list, intersect_lines: list, side: int):
         end_found = False
     
     return spots
+
+
+
+'''
+Use background subtraction to determine spot fullness
+
+Inputs:
+    empty_lot: image of empty lot
+    live_lot: live image of lot
+    dimensions: dimensions of image (h, w)
+    spots: list of spots to analyze
+
+Output:
+    spot_occupancy: list of occupancy within spot (0 = empty, 1 = full)
+'''
+def detect_fullness(empty_lot, live_lot, dimensions, spots):
+
+    # subtract the empty lot from the live lot, gray scale for color
+    # consistency
+    subtracted_lot = cv2.absdiff(empty_lot, live_lot)
+    gray_subtracted = cv2.cvtColor(subtracted_lot, cv2.COLOR_BGR2GRAY)
+
+    # check spot detection zones for certain amount of changed
+    # pixels; if over threshold, spot occupied
+    spot_occupancy = []
+    for spot in spots:
+        mask = numpy.zeros(dimensions, dtype=numpy.uint8)
+        cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
+        isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
+
+        spot_area = cv2.countNonZero(mask)
+        changed_pixels = cv2.countNonZero(isolated_spot)
+        percent_filled = (changed_pixels / spot_area) * 100
+
+        if percent_filled > 20:
+            spot_occupancy.append(1)
+        else:
+            spot_occupancy.append(0)
+    
+    return spot_occupancy
