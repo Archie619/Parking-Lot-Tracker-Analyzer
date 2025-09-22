@@ -48,8 +48,8 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
       ),
       body: Column (
         children: [
-          Image.network(currentLot.mapPath), // display map
-          Center(child: Text('${currentLot.spotsTaken}/${currentLot.totalSpots} spots taken!')), // display # of spots taken
+          // display map here
+          Center(child: Text('${currentLot.availableSpots} spots available!')), // display # of spots taken
         ],
       ) 
     );

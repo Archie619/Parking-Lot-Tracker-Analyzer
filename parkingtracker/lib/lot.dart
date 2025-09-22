@@ -1,13 +1,13 @@
 class Lot {
-
+  // Required
   String lotName;
-  int lotNumber;
-  int spotsTaken;
-  int totalSpots;
-  String mapPath; // path to map image
+  // Will be updated with backend
+  int? availableSpots;
+  int? totalSpots;
+  Map<String, dynamic>? lotMap = {
 
-  Lot(this.lotName, this.lotNumber, this.spotsTaken, this.totalSpots, this.mapPath);
+  };
 
-  int get availableSpots => totalSpots - spotsTaken;
+  Lot({required this.lotName, this.availableSpots, this.totalSpots, this.lotMap});
 
 }
