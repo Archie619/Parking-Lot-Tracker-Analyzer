@@ -193,6 +193,8 @@ def build_spots(space_lines: list, intersect_lines: list, side: int):
         e_x, e_y = -1, -1
         intersect_found = False
         end_found = False
+
+    spots.sort()
     
     return spots
 
@@ -224,7 +226,7 @@ def define_spots(empty_lot):
                             rho=1,               # indiv. pixel granularity
                             theta=numpy.pi/180,  # sweep image in 1 deg incs
                             threshold=80,        # x pixel hits during sweep 
-                                                # to be considered a line
+                                                 # to be considered a line
                             minLineLength=50,    # lines must be x pixels long
                             maxLineGap=10)       # lines may have a x pixel gap
 
@@ -245,10 +247,10 @@ def define_spots(empty_lot):
     prune_space_lines(space_lines_side1, intersect_line_points)
     prune_space_lines(space_lines_side2, intersect_line_points)
 
-    # build list of all spots in the lot
+    # build list of all spots in the lot; separate rows
     spots = []
-    spots += build_spots(space_lines_side1, intersect_lines, 1)
-    spots += build_spots(space_lines_side2, intersect_lines, 2)
+    spots += [build_spots(space_lines_side1, intersect_lines, 1)]
+    spots += [build_spots(space_lines_side2, intersect_lines, 2)]
 
     return spots
 
@@ -265,6 +267,8 @@ Inputs:
 
 Output:
     spot_occupancy: list of occupancy within spot (0 = empty, 1 = full)
+    available_spots: number of available spots to park in
+    total_spots: number of available and unavailable spots
 '''
 def detect_fullness(empty_lot, live_lot, dimensions, spots):
 
@@ -276,18 +280,29 @@ def detect_fullness(empty_lot, live_lot, dimensions, spots):
     # check spot detection zones for certain amount of changed
     # pixels; if over threshold, spot occupied
     spot_occupancy = []
-    for spot in spots:
-        mask = numpy.zeros(dimensions, dtype=numpy.uint8)
-        cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
-        isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
+    spot_row_occupancy = []
+    available_spots = 0
+    total_spots = 0
+    for spot_row in spots:
+        for spot in spot_row:
+            mask = numpy.zeros(dimensions, dtype=numpy.uint8)
+            cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
+            isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
 
-        spot_area = cv2.countNonZero(mask)
-        changed_pixels = cv2.countNonZero(isolated_spot)
-        percent_filled = (changed_pixels / spot_area) * 100
+            spot_area = cv2.countNonZero(mask)
+            changed_pixels = cv2.countNonZero(isolated_spot)
+            percent_filled = (changed_pixels / spot_area) * 100
 
-        if percent_filled > 20:
-            spot_occupancy.append(1)
-        else:
-            spot_occupancy.append(0)
+            total_spots += 1
+            if percent_filled > 20:
+                spot_row_occupancy.append({'spot_id': total_spots,
+                                           'occupied': True})
+            else:
+                spot_row_occupancy.append({'spot_id': total_spots,
+                                           'occupied': False})
+                available_spots += 1
+                
+        spot_occupancy.append(spot_row_occupancy)
+        spot_row_occupancy = []
     
-    return spot_occupancy
+    return spot_occupancy, available_spots, total_spots
