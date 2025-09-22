@@ -1,9 +1,11 @@
 // Lots widget that will hold list of lots to choose from.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:parkingtracker/lot.dart';
+import 'package:parkingtracker/requests.dart';
 import 'package:parkingtracker/screens/lotInfo.dart';
-import 'package:parkingtracker/screens/screen.dart';
 
 // Stateful = Mutable
 class LotsScreen extends StatefulWidget {
@@ -14,17 +16,49 @@ class LotsScreen extends StatefulWidget {
 }
 
 class _LotsScreenState extends State<LotsScreen> {
-  // List of different lots to choose from go here. Info like Name & how many spots available needed.
-  // Stateful logic here (things that change)
 
-  // This will need to be changed to pull from backend or internal storage
-
+  // Initialize Lot objects with names
   List<Lot> lots = [
-    Lot('Engineering Lot 1', 1, 70, 100, 'https://i.ibb.co/7dKrFp0T/simplified-Lot.png'),
-    Lot('Engineering Lot 2', 2, 30, 70, 'https://i.ibb.co/7dKrFp0T/simplified-Lot.png'),
-    Lot('Rocket Stadium Lot 15', 3, 100, 150, 'https://i.ibb.co/7dKrFp0T/simplified-Lot.png'),
+    Lot(lotName: 'Engineering Lot 1'),
+    Lot(lotName: 'Engineering Lot 2'),
+    Lot(lotName: 'Rocket Stadium Lot 15'),
   ];
+
+  final Requests requests = Requests(); // Create Requests object to call functions to get data
+  late Timer timer; // Will be destroyed when widget is dismissed.
+
+  // Initial state of widget: get lot data for each info, and then update periodically from there.
+  @override
+  void initState() {
+    super.initState();
+    updateLotData();
+
+    // Every 60 seconds, refresh data
+    timer = Timer.periodic(const Duration(minutes: 1), (timer) => updateLotData());
+  }
   
+  // Cancel timer
+  @override
+  void dispose() {
+    timer.cancel();
+    super.dispose();
+  }
+
+  // For each lot, get data from backend on how many spots available & then update UI.
+  Future<void> updateLotData() async {
+    for (Lot lot in lots) { 
+      final data = await requests.fetchLotInfo(lot.lotName);
+
+      if (data != null) {
+        setState(() { // Updates UI
+          // Update lot data
+          lot.availableSpots = data['available_spots'];
+          lot.totalSpots = data['total_spots'];
+        });
+      }
+    }
+  }
+
   // Build methods called anytime Flutter rebuilds UI, returns Widget
   @override
   Widget build(BuildContext context) {
