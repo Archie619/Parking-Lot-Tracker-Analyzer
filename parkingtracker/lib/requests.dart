@@ -8,7 +8,11 @@ class Requests {
 
   Future<Map<String, dynamic>?> fetchLotInfo(String lotName) async {
     // add name of lot to header of request
-    final response = await http.get(Uri.parse(''));
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:8000/lotinfo'),
+      headers: {
+        'lot_name': lotName,
+      });
 
     if (response.statusCode == 200) {
       print(jsonDecode(response.body));
