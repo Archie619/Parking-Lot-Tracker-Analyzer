@@ -2,7 +2,7 @@ import cv2, numpy
 from analysis.space_detection import define_spots, detect_fullness
 
 img_w = 800
-img_h = 445
+img_h = 444
 
 TEST_E_IMG = cv2.imread('.\images\diag_PL2.jpg', 1)
 TEST_E_IMG = cv2.resize(TEST_E_IMG, (img_w, img_h))
@@ -40,6 +40,8 @@ def show_detection_as_image():
     empty_lot = cv2.resize(empty_lot, (img_w, img_h))
     live_lot = cv2.resize(live_lot, (img_w, img_h))
 
+    cv2.imshow('Analysis', empty_lot)
+
     # identify spots from the empty lot image
     spots = define_spots(empty_lot)   # NOTE: EVENTUALLY WILL NEED TO PASS IMG HERE
 
@@ -71,7 +73,7 @@ def show_detection_as_image():
     j = 0
     for spot_row in spots:
         for spot in spot_row:
-            if spot_occupancy[i][j] == 1:
+            if spot_occupancy[i][j]['occupied']:
                 cv2.fillPoly(analysis_img, [numpy.array(spot)], (0, 255, 0))
             else:
                 cv2.fillPoly(analysis_img, [numpy.array(spot)], (0, 0, 255))
