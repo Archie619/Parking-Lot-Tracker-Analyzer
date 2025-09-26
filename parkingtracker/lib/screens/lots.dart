@@ -19,9 +19,7 @@ class _LotsScreenState extends State<LotsScreen> {
 
   // Initialize Lot objects with names
   List<Lot> lots = [
-    Lot(lotName: 'Engineering Lot 1'),
-    Lot(lotName: 'Engineering Lot 2'),
-    Lot(lotName: 'Rocket Stadium Lot 15'),
+    Lot(lotName: 'test'),
   ];
 
   final Requests requests = Requests(); // Create Requests object to call functions to get data
@@ -34,7 +32,7 @@ class _LotsScreenState extends State<LotsScreen> {
     updateLotData();
 
     // Every 60 seconds, refresh data
-    timer = Timer.periodic(const Duration(minutes: 1), (timer) => updateLotData());
+    timer = Timer.periodic(const Duration(seconds: 30), (timer) => updateLotData());
   }
   
   // Cancel timer
@@ -81,7 +79,7 @@ class _LotsScreenState extends State<LotsScreen> {
               );
             },
             child: Container(
-            padding: EdgeInsets.only(left: 15.0, right: 25.0), // pad both left/right of container
+            padding: EdgeInsets.only(left: 15.0, right: 25.0),          // pad both left/right of container
             height: 60,
             decoration: BoxDecoration(
               color: Colors.greenAccent,
@@ -92,10 +90,12 @@ class _LotsScreenState extends State<LotsScreen> {
             ),
             child: 
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween, // put max space between children
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,      // put max space between children
                 children: [
-                  Text(lots[index].lotName), // show lot name
-                  Text('${lots[index].availableSpots} spots left!'), // show # of spots left
+                  Text(lots[index].lotName),                            // show lot name
+                  lots[index].availableSpots != null                    // show # of spots left
+                    ? Text('${lots[index].availableSpots} spots left!') // if not null, display real value (loaded)
+                    : Text('Loading...'),                               // if null, show loading..
                 ],
               ),
             ),
