@@ -4,19 +4,9 @@ from analysis.space_detection import define_spots, detect_fullness
 img_w = 800
 img_h = 444
 
-TEST_E_IMG = cv2.imread('.\images\diag_PL2.jpg', 1)
-TEST_E_IMG = cv2.resize(TEST_E_IMG, (img_w, img_h))
-TEST_L_IMG = cv2.imread('.\images\live_diag_PL2.jpg', 1)
-TEST_L_IMG = cv2.resize(TEST_L_IMG, (img_w, img_h))
-TEST_SPOTS = define_spots(TEST_E_IMG)
-TEST_LOT = {'name': 'test',
-            'empty_lot_img': TEST_E_IMG,
-            'live_lot_img': TEST_L_IMG,
-            'spots': TEST_SPOTS}
-
-lots = [TEST_LOT]   # lots to be analyzed NOTE: will need DB integration
-lot_maps = {'test': None}
-lot_previews = {'test': None}
+lots = []   
+lot_maps = {}
+lot_previews = {}
 
 '''
 Show spots in a lot
@@ -104,14 +94,32 @@ Outputs:
     None
 '''
 def begin_rolling_analysis():
-    # infinite rolling analysis of lots
+    
     i = -1
     while 1:
-        i = (i + 1) % len(lots)
-        spot_map, a_spots, t_spots = detect_fullness(lots[i]["empty_lot_img"],
-                                                     lots[i]["live_lot_img"],
-                                                     (img_h, img_w),
-                                                     lots[i]["spots"])
-        lot_maps[lots[i]["name"]] = spot_map
-        lot_previews[lots[i]["name"]] = {'available': a_spots,
-                                         'total': t_spots}
+        
+        if len(lots) > 0:
+            # rolling i increment
+            i = (i + 1) % len(lots)
+
+            # open the live lot stream and take a snapshot
+            stream = cv2.VideoCapture(lots[i]["live_lot_stream"])
+
+        if len(lots) > 0 and stream.isOpened():
+            success, live_img = stream.read()        
+            if success:
+                # resize images to a reasonable size
+                lots[i]["empty_lot_img"] = cv2.resize(lots[i]["empty_lot_img"], 
+                                                      (img_w, img_h))
+                live_img = cv2.resize(live_img, (img_w, img_h))
+                
+                # detect spot fullness
+                spot_map, a_spots, t_spots = detect_fullness(lots[i]["empty_lot_img"],
+                                                            live_img,
+                                                            (img_h, img_w),
+                                                            lots[i]["spots"])
+                
+                # update status lists
+                lot_maps[lots[i]["name"]] = spot_map
+                lot_previews[lots[i]["name"]] = {'available': a_spots,
+                                                'total': t_spots}

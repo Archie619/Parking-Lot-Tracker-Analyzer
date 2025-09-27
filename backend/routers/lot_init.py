@@ -1,7 +1,8 @@
 import cv2
 from fastapi import APIRouter
 from pydantic import BaseModel
-from analysis.rolling_analysis import lot_maps
+from analysis.rolling_analysis import lots, lot_maps, img_w, img_h
+from analysis.space_detection import define_spots
 
 router = APIRouter()
 
@@ -49,6 +50,14 @@ async def init_lot(lot: NewLot):
             status = 'failure'
             message = ('rtsp link reached but screenshot could not' +
                        'be produced')
+
+    # add the lot to the rolling analysis, if everything has been
+    # successful up to this point
+    if status == 'success':
+        lots.append({'name': lot.lot_name,
+                     'empty_lot_img': ss,
+                     'live_lot_stream': lot.lot_feed_source,
+                     'spots': define_spots(cv2.resize(ss, (img_w, img_h)))})
 
     return {'status': status,
             'message': message}
