@@ -56,7 +56,7 @@ async def init_lot(lot: NewLot):
     if status == 'success':
         lots.append({'name': lot.lot_name,
                      'empty_lot_img': ss,
-                     'live_lot_stream': lot.lot_feed_source,
+                     'live_lot_stream': lot.lot_feed_source + '?rtsp_transport=tcp&stimeout=2000000',
                      'spots': define_spots(cv2.resize(ss, (img_w, img_h)))})
 
     return {'status': status,

@@ -103,7 +103,7 @@ def begin_rolling_analysis():
             i = (i + 1) % len(lots)
 
             # open the live lot stream and take a snapshot
-            stream = cv2.VideoCapture(lots[i]["live_lot_stream"])
+            stream = cv2.VideoCapture(lots[i]["live_lot_stream"], cv2.CAP_FFMPEG)
 
         if len(lots) > 0 and stream.isOpened():
             success, live_img = stream.read()        
