@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from analysis.rolling_analysis import lots, lot_maps, img_w, img_h
 from analysis.space_detection import define_spots
+from db_init import cursor, db_con
 
 router = APIRouter()
 
@@ -51,13 +52,19 @@ async def init_lot(lot: NewLot):
             message = ('rtsp link reached but screenshot could not' +
                        'be produced')
 
-    # add the lot to the rolling analysis, if everything has been
+    # add the lot to the rolling analysis and database, if everything has been
     # successful up to this point
     if status == 'success':
         lots.append({'name': lot.lot_name,
                      'empty_lot_img': ss,
                      'live_lot_stream': lot.lot_feed_source + '?rtsp_transport=tcp&stimeout=2000000',
                      'spots': define_spots(cv2.resize(ss, (img_w, img_h)))})
+        
+        # encode image to bytes
+        success, img_bytes = cv2.imencode(".png", ss)
+        cursor.execute('INSERT INTO lot_media (lot_code, empty_img_path, live_stream)' 
+                       'VALUES (?, ?, ?)', (lot.lot_name, img_bytes.tobytes(), lot.lot_feed_source))
+        db_con.commit()
 
     return {'status': status,
             'message': message}
