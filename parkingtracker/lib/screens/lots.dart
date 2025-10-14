@@ -19,7 +19,7 @@ class _LotsScreenState extends State<LotsScreen> {
 
   // Initialize Lot objects with names
   List<Lot> lots = [
-    Lot(lotName: 'test'),
+    Lot(lotName: '1A'),
   ];
 
   final Requests requests = Requests(); // Create Requests object to call functions to get data

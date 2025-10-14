@@ -41,7 +41,7 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
     super.dispose();
   }
 
-   // For each lot, get data from backend on how many spots available & then update UI.
+  // For each lot, get data from backend on how many spots available & then update UI.
   Future<void> updateLotMap() async {
     final data = await requests.fetchLotMap(currentLot.lotName);
 
@@ -69,19 +69,33 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
           // display map here
           if (currentLot.lotMap != null) // if map is not null
             ...currentLot.lotMap!.map((row) { // loops through each list (row) [ [], [] ]
-              return Row( // create a physical row widget on the UI, its children are the individual spots...
-                children: row.map<Widget>((spot) { // loops through each individual spot, return a container widget for each spot to represent parking space
-                  return Container(
-                    width: 40,
-                    height: 70,
-                    margin: const EdgeInsets.all(4), // padding
-                    color: spot['occupied'] ? Colors.red : Colors.green, // depending on individual spot occupancy
-                  );
-                }).toList() // convert all containers in row to list, return it.
-              );
-            }),
 
+            return Column (
+              children: [
+                Row( // create a physical row widget on the UI, its children are the individual spots...
+                  mainAxisAlignment: MainAxisAlignment.center, // Align spots to center
+                  children: row.map<Widget>((spot) { // loops through each individual spot, return a container widget for each spot to represent parking space
+                    return Container(
+                      width: 40,
+                      height: 70,
+                      margin: const EdgeInsets.all(4), // padding
+                      color: spot['occupied'] ? Colors.red : Colors.green, // depending on individual spot occupancy
+                    );
+                  }).toList(), // convert all containers in row to list, return it.
+                ),
+                
+                // After every row of spots, add a parking line horizontally.
+                if (row != currentLot.lotMap!.last) // If row is NOT last row in list, add line
+                  Container(
+                    width: row.length * (48),
+                    color: Colors.white,
+                    height: 5,
+                    margin: EdgeInsets.symmetric(vertical: 1),
+                  ),
+            ]
+          );
           // display spots available
+          }).toList(),
           Text('${currentLot.availableSpots} spots available!'), // display # of spots taken
         ],
       ) 

@@ -41,4 +41,28 @@ class Requests {
     }
   }
 
+  // /lot-init
+  Future<Map<String, dynamic>?> initLot(String lotName, String RTSPLink) async {
+    final response = await http.post(
+      Uri.parse('http://10.0.2.2:8000/lot-init'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'lot_name': lotName,
+        'lot_feed_source': RTSPLink,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      // HTTP Request successful
+      final body = jsonDecode(response.body);
+      return body as Map<String, dynamic>; // return status/message back to caller
+    } else {
+      print(response.statusCode);
+      return null;
+    }
+
+  }
+
 }
