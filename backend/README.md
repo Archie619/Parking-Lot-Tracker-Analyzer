@@ -23,9 +23,8 @@ To get the backend up and running perform the following...
       into the correct directory
 
 3. Start uvicorn:
+    - Move into the backend directory
     - uvicorn api_init:app --reload
-    - NOTE: This starts the server not the image analysis (yet...)
-      to do that run: python opencv_sandbox.py
 
 ## Tips
 
