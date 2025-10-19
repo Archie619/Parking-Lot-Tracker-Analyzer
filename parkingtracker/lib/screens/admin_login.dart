@@ -1,4 +1,5 @@
 // Admin login screen shown before accessing Initialize
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 const adminPassword = '4020'; // App password
@@ -16,6 +17,13 @@ class _AdminLoginState extends State<AdminLogin> {
   bool _showError = false;
   bool _obscure = true; // Show/hide password toggle
 
+  int _failedAttempts = 0;
+  static const _maxAttempts = 3;
+  static const _lockoutSeconds = 30; // Lockout duration
+  DateTime? _lockedUntil;
+  Timer? _lockoutTimer; // Timer to update countdown
+  int _remainingSeconds = 0; // Seconds left
+
   // Palette
   static const blue = Color(0xFF5BA8FF); // Text/icons
   static const darker = Color(0xFF3F90F0); // Title text
@@ -27,17 +35,69 @@ class _AdminLoginState extends State<AdminLogin> {
 
   @override
   void dispose() {
+    _lockoutTimer?.cancel();
     _passCtrl.dispose();
     super.dispose();
   }
 
   // Checks password
   void _tryLogin() {
-    if (_passCtrl.text.trim() == adminPassword) {
+    if (_isLocked) {
+      setState(() => _showError = true);
+      return;
+    }
+
+    final entered = _passCtrl.text.trim();
+    if (entered == adminPassword) {
+      _failedAttempts = 0;
+      _showError = false;
       Navigator.pop(context, true); // Success
     } else {
+      _failedAttempts += 1;
+      if (_failedAttempts >= _maxAttempts) {
+        _beginLockout();
+      }
       setState(() => _showError = true); // Show error message
     }
+  }
+
+  bool get _isLocked {
+    if (_lockedUntil == null) return false;
+    return DateTime.now().isBefore(_lockedUntil!);
+  }
+
+  // Starts lockout when all attempts are used
+  void _beginLockout() {
+    _lockedUntil = DateTime.now().add(const Duration(seconds: _lockoutSeconds));
+    _updateLockoutTimer();
+    // Cancel any timers that are already there
+    _lockoutTimer?.cancel();
+    _lockoutTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateLockoutTimer(),
+    );
+  }
+
+  // Updates lockout time
+  // When time runs out, it clears the lock, resets the attempt counter
+  void _updateLockoutTimer() {
+    if (_lockedUntil == null) return;
+    // Time difference between now and when lockout ends
+    final diff = _lockedUntil!.difference(DateTime.now());
+    // Convert to seconds
+    final secs = diff.inSeconds.clamp(0, _lockoutSeconds);
+    // Update the countdown
+    setState(() {
+      _remainingSeconds = secs;
+      // When countdown reaches 0, reset everything
+      if (secs == 0) {
+        _lockedUntil = null;
+        _failedAttempts = 0;
+        _showError = false;
+        _lockoutTimer?.cancel();
+        _lockoutTimer = null;
+      }
+    });
   }
 
   // Build method called anytime Flutter rebuilds UI
@@ -157,9 +217,11 @@ class _AdminLoginState extends State<AdminLogin> {
                         // Error message
                         if (_showError) ...[
                           const SizedBox(height: 8),
-                          const Text(
-                            'Incorrect password.',
-                            style: TextStyle(
+                          Text(
+                            _isLocked
+                                ? 'Too many attempts. Try again in $_remainingSeconds s.'
+                                : 'Incorrect password.',
+                            style: const TextStyle(
                               color: Colors.red,
                               fontFamily: 'Merriweather',
                             ),
@@ -173,7 +235,7 @@ class _AdminLoginState extends State<AdminLogin> {
                           children: [
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: _tryLogin,
+                                onPressed: _isLocked ? null : _tryLogin,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: btnBg,
                                   foregroundColor: blue,
