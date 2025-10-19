@@ -6,6 +6,10 @@ class Lot {
   int? totalSpots;
   List<List<dynamic>>? lotMap;
 
-  Lot({required this.lotName, this.availableSpots, this.totalSpots, this.lotMap});
-
+  Lot({
+    required this.lotName,
+    this.availableSpots,
+    this.totalSpots,
+    this.lotMap,
+  });
 }
