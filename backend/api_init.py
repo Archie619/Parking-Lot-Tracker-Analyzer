@@ -1,6 +1,4 @@
-import cv2
-import numpy
-import threading
+import cv2, numpy, threading, os, sys
 from fastapi import FastAPI
 from routers import lot_init, lot_status
 from analysis.rolling_analysis import begin_rolling_analysis, lots
@@ -57,7 +55,11 @@ for lot in saved_lots:
                  'live_lot_stream': lot[2] + '?rtsp_transport=tcp&stimeout=2000000',
                  'spots': spots})
 
+dump = open(os.devnull, 'w')
+save = sys.stderr
+os.dup2(dump.fileno(), save.fileno())
 threading.Thread(target=begin_rolling_analysis, daemon=True).start()
+sys.stderr = save
 
 '''
 Check if the backend opened up successfully
