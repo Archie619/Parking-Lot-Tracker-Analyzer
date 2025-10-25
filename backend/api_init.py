@@ -3,8 +3,7 @@ import numpy
 import threading
 from fastapi import FastAPI
 from routers import lot_init, lot_status
-from analysis.rolling_analysis import begin_rolling_analysis, lots, img_w, img_h
-from analysis.space_detection import define_spots
+from analysis.rolling_analysis import begin_rolling_analysis, lots
 from db_init import cursor
 
 app = FastAPI(

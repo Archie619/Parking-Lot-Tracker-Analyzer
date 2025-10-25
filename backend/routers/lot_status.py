@@ -9,6 +9,9 @@ router = APIRouter()
 #           PYDANTIC MODELS            #
 ########################################
 
+class LotNames(BaseModel):
+    lot_names: list[str]
+
 class SpotStatus(BaseModel):
     spot_id: int
     occupied: bool
@@ -25,6 +28,22 @@ class LotMap(BaseModel):
 ########################################
 #             FUNCTIONS                #
 ########################################
+
+'''
+Load names of all known lots
+'''
+@router.get('/lot-names', response_model=LotNames)
+async def load_lot_names():
+
+    # pull all known lot names from the database
+    cursor.execute('SELECT lot_code FROM lot_media')
+    ans = cursor.fetchall()
+    
+    # reformat list; break tuples
+    for i in range(0, len(ans)):
+        ans[i] = ans[i][0]
+
+    return {'lot_names': ans}
 
 '''
 Load a preview of a specific lot's statistics
