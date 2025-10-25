@@ -45,6 +45,8 @@ async def load_lot_names():
 
     return {'lot_names': ans}
 
+
+
 '''
 Load a preview of a specific lot's statistics
 '''
