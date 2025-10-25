@@ -16,14 +16,26 @@ class _InitializeScreenState extends State<InitializeScreen> {
   // Create text controllers to retrieve current values of text fields
   final lotNameController = TextEditingController();
   final rtspLinkController = TextEditingController();
+  final passwordController = TextEditingController();
 
   final Requests requests = Requests(); // Create Requests object to call functions to get data
+
+  bool protect = true; // whether or not to protect screen.
 
   @override
   void dispose() {
     lotNameController.dispose();
     rtspLinkController.dispose();
+    passwordController.dispose();
     super.dispose();
+  }
+
+  void submitPassword() async {
+    final password = passwordController.text;
+    if (password == "123") {
+      protect = false;
+      setState(() {}); // refresh widget
+    }
   }
 
   // Initialize lot function, called when button pressed - pull data from both text fields, then call initLot with data.
@@ -67,33 +79,62 @@ class _InitializeScreenState extends State<InitializeScreen> {
   // Build methods called anytime Flutter rebuilds UI, returns Widget
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 227, 210, 248),
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(255, 86, 163, 227),
-        foregroundColor: Colors.white,
-        title: Text('Initialize New Lot'),
-      ),
-      body:Padding(
-        padding: const EdgeInsets.all(16.0), 
-        child: Column (
-        children: [
-          TextField(
-            controller: lotNameController,
-            decoration: InputDecoration(labelText: 'Enter Lot Name', border: OutlineInputBorder()),
+    return Stack (
+      children: [
+        Scaffold(
+          backgroundColor: const Color.fromARGB(255, 227, 210, 248),
+          appBar: AppBar(
+            backgroundColor: Color.fromARGB(255, 86, 163, 227),
+            foregroundColor: Colors.white,
+            title: Text('Initialize New Lot'),
           ),
-          SizedBox(height:15), // space out text fields
-          TextField(
-            controller: rtspLinkController,
-            decoration: InputDecoration(labelText: 'Enter RTSP Link', border: OutlineInputBorder()),
+          body:Padding(
+            padding: const EdgeInsets.all(16.0), 
+            child: Column (
+            children: [
+              TextField(
+                controller: lotNameController,
+                decoration: InputDecoration(labelText: 'Enter Lot Name', border: OutlineInputBorder()),
+              ),
+              SizedBox(height:15), // space out text fields
+              TextField(
+                controller: rtspLinkController,
+                decoration: InputDecoration(labelText: 'Enter RTSP Link', border: OutlineInputBorder()),
+              ),
+              SizedBox(height:30),
+              ElevatedButton(
+                onPressed: initializeLot,
+                child: Text("Initialize Lot"))
+            ],
+          )
+        )
+        ),
+        if (protect) // if protect bool true -> overlay password protection
+          Scaffold(
+          backgroundColor: const Color.fromARGB(255, 255, 152, 134),
+          appBar: AppBar(
+            backgroundColor: Color.fromARGB(255, 86, 163, 227),
+            foregroundColor: Colors.white,
+            title: Text('Password Required'),
           ),
-          SizedBox(height:30),
-          ElevatedButton(
-            onPressed: initializeLot,
-            child: Text("Initialize Lot"))
-        ],
-      )
-    )
+          body:Padding(
+            padding: const EdgeInsets.all(16.0), 
+            child: Column (
+            children: [
+              TextField(
+                controller: passwordController,
+                decoration: InputDecoration(labelText: 'Enter Password', border: OutlineInputBorder()),
+              ),
+              SizedBox(height:15), // space out text fields
+              ElevatedButton(
+                onPressed: submitPassword,
+                child: Text("Submit"))
+            ],
+          )
+        )
+        )
+      ],
     );
+    
   }
 }

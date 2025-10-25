@@ -17,19 +17,27 @@ class LotsScreen extends StatefulWidget {
 
 class _LotsScreenState extends State<LotsScreen> {
 
-  // Initialize Lot objects with names
-  List<Lot> lots = [
-    Lot(lotName: '1A'),
-  ];
-
   final Requests requests = Requests(); // Create Requests object to call functions to get data
   late Timer timer; // Will be destroyed when widget is dismissed.
+
+  // Get list of lot names from backend, display them in list
+  List<Lot> lots = [];
+
+  Future<void> loadLots() async {
+    final names = await requests.fetchLotNames();
+    if (names != null) {
+      lots = names.map((name) => Lot(lotName: name)).toList();
+    }
+  }
 
   // Initial state of widget: get lot data for each info, and then update periodically from there.
   @override
   void initState() {
     super.initState();
-    updateLotData();
+    loadLots().then((_) { // Wait for loadLots request to finish, then force refresh the state and then updatelotdata.
+      setState(() {});
+      updateLotData();
+    });
 
     // Every 60 seconds, refresh data
     timer = Timer.periodic(const Duration(seconds: 30), (timer) => updateLotData());

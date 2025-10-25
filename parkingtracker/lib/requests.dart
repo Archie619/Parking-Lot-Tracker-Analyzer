@@ -65,4 +65,21 @@ class Requests {
 
   }
 
+  // /lot-names
+  Future<List<dynamic>?> fetchLotNames() async {
+    // add name of lot to header of request
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:8000/lot-names'),
+    );
+    if (response.statusCode == 200) {
+      print(jsonDecode(response.body));
+      final responseBody = jsonDecode(response.body); // get body of response
+      return responseBody['lot_names'] as List<dynamic>; // return spot map as List<dynamic>
+    } else {
+      print(response.statusCode);
+      return null;
+    }
+  }
+
+
 }
