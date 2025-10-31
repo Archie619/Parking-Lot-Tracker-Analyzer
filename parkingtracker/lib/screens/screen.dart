@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:parkingtracker/screens/initialize.dart';
 import 'package:parkingtracker/screens/lots.dart';
+import 'package:parkingtracker/screens/parking_page.dart';
 
 // Stateful = Mutable
 class Screen extends StatefulWidget {
@@ -41,11 +42,17 @@ class _ScreenState extends State<Screen> {
             icon: Icon(Icons.perm_data_setting_outlined), 
             label: 'Initialize',
           ),
+          NavigationDestination(
+            selectedIcon: Icon(Icons.local_parking),
+            icon: Icon(Icons.local_parking_outlined),
+            label: 'Parking',
+          ),
         ],
       ),
     body: <Widget>[ 
       LotsScreen(),
       InitializeScreen(),
+      const ParkingPage(),
     ][currentPageIndex], // Selects current selected widget from list, passes to body ("changes" screen)
     );
   }
