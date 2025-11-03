@@ -1,5 +1,4 @@
 // Lots screen displays all parking lots and their current availability
-// Pulled from backend via requests.dart
 
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -13,6 +12,9 @@ const _badgeBg = Color(0xFFA7E7FF);
 const _cardBg = Color(0xFFFFF9E6);
 const _cardBorder = Color(0xFFF1E7B8);
 const _cream = Color(0xFFFFFFDF);
+
+// Defines the sort options
+enum _SortMode { availability, size }
 
 // Stateful = Mutable
 class LotsScreen extends StatefulWidget {
@@ -30,9 +32,9 @@ class _LotsScreenState extends State<LotsScreen> {
   // Get list of lot names from backend, display them in list
   List<Lot> lots = [];
 
-  // Tracks which sort mode is active (availability or size)
-  bool _sortByAvailability = true;
+  _SortMode _sortMode = _SortMode.availability;
 
+  // Load lot names from backend and create Lot objects for each
   Future<void> loadLots() async {
     final names = await requests.fetchLotNames();
     if (names != null) {
@@ -49,7 +51,7 @@ class _LotsScreenState extends State<LotsScreen> {
       updateLotData();
     });
 
-    // Every 60 seconds, refresh data
+    // Every 30 seconds, refresh data
     timer = Timer.periodic(
       const Duration(seconds: 30),
       (timer) => updateLotData(),
@@ -70,32 +72,27 @@ class _LotsScreenState extends State<LotsScreen> {
 
       if (data != null) {
         setState(() {
-          // Updates UI
-          // Update lot data
           lot.availableSpots = data['available_spots'];
           lot.totalSpots = data['total_spots'];
         });
       }
     }
-    // After updating all lots, reapply current sort mode
-    _sortLots();
+    _applySort();
   }
 
-  // Sorts the lots by either availability (free spaces) or total size
-  void _sortLots() {
+  // Sorts the lots based on the selected mode (availability or size) and updates the UI
+  void _applySort() {
     setState(() {
-      if (_sortByAvailability) {
+      if (_sortMode == _SortMode.availability) {
         lots.sort(
           (a, b) => (b.availableSpots ?? 0).compareTo(a.availableSpots ?? 0),
         );
       } else {
         lots.sort((a, b) => (b.totalSpots ?? 0).compareTo(a.totalSpots ?? 0));
       }
-      _sortByAvailability = !_sortByAvailability; // toggles the next sort mode
     });
   }
 
-  // Build methods called anytime Flutter rebuilds UI, returns Widget
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -105,40 +102,60 @@ class _LotsScreenState extends State<LotsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header row and sort button
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Parking Lots',
-                  style: TextStyle(
-                    fontFamily: 'Merriweather',
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: _blue,
+                const Padding(
+                  padding: EdgeInsets.only(top: 6),
+                  child: Text(
+                    'Parking Lots',
+                    style: TextStyle(
+                      fontFamily: 'Merriweather',
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: _blue,
+                    ),
                   ),
                 ),
-                ElevatedButton(
-                  onPressed: _sortLots,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+                Container(
+                  width: 170,
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: _blue,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
-                    _sortByAvailability
-                        ? 'Sort by Size'
-                        : 'Sort by Availability',
-                    style: const TextStyle(
-                      fontFamily: 'Merriweather',
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13.5,
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<_SortMode>(
+                      value: _sortMode,
+                      isExpanded: true,
+                      dropdownColor: _blue,
+                      iconEnabledColor: Colors.white,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'Merriweather',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12.5,
+                      ),
+                      items: const [
+                        // Availability = lots with more free spaces appear first
+                        DropdownMenuItem(
+                          value: _SortMode.availability,
+                          child: Center(child: Text('Sort: Availability')),
+                        ),
+                        // Size = lots with higher total capacity appear first
+                        DropdownMenuItem(
+                          value: _SortMode.size,
+                          child: Center(child: Text('Sort: Size')),
+                        ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        _sortMode =
+                            v; // update selected sort mode from the menu
+                        _applySort(); // re-order the list based on the new mode
+                      },
                     ),
                   ),
                 ),
@@ -217,7 +234,7 @@ class _LotCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
           child: Row(
             children: [
-              // Badge with the P icon
+              // Badge with the P icon (for the parking symbol)
               Container(
                 width: 44,
                 height: 44,

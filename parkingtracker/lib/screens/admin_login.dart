@@ -2,7 +2,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 
-const adminPassword = '4020'; // App password
+const adminPassword = '4020'; // Admin password
 
 // Stateful = Mutable
 class AdminLogin extends StatefulWidget {
@@ -29,7 +29,7 @@ class _AdminLoginState extends State<AdminLogin> {
   static const darker = Color(0xFF3F90F0); // Title text
   static const cream = Color(0xFFFFFFDF); // Page background
   static const barBg = Color(0xFF8FD6FF); // AppBar background
-  static const btnBg = Color(0xFFFFF9E6); // Pale yellow buttons
+  static const btnBg = Color(0xFFFFF9E6); // Yellow buttons
   static const panelBg = Color(0xFFEAF6FF); // Pale blue panel
   static const yellow = Color(0xFFFFE79B); // Header strip + section band
 
@@ -144,7 +144,7 @@ class _AdminLoginState extends State<AdminLogin> {
             ),
           ),
 
-          // Login form panel
+          // Login panel
           Expanded(
             child: Center(
               child: ConstrainedBox(
@@ -175,7 +175,7 @@ class _AdminLoginState extends State<AdminLogin> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Password field with visibility toggle
+                        // Password field
                         TextField(
                           controller: _passCtrl,
                           obscureText: _obscure,
@@ -199,7 +199,7 @@ class _AdminLoginState extends State<AdminLogin> {
                                 width: 1.5,
                               ),
                             ),
-                            // Eye icon to toggle password visibility
+                            // Eye icon (password visibility)
                             suffixIcon: IconButton(
                               icon: Icon(
                                 _obscure
