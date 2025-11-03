@@ -1,11 +1,11 @@
 // Lots screen displays all parking lots and their current availability
-// Pulled from local SQLite (lot_summary)
+// Pulled from backend via requests.dart
 
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:parkingtracker/screens/lotInfo.dart';
 import 'package:parkingtracker/lot.dart';
-import '../data/database.dart' as appdb;
+import 'package:parkingtracker/requests.dart';
 
 // Color palette
 const _blue = Color(0xFF5BA8FF);
@@ -23,69 +23,161 @@ class LotsScreen extends StatefulWidget {
 }
 
 class _LotsScreenState extends State<LotsScreen> {
-  // Holds each row from the lot_summary table
-  List<Map<String, Object?>> _lots = [];
-  Timer? _timer;
+  final Requests requests =
+      Requests(); // Create Requests object to call functions to get data
+  late Timer timer; // Will be destroyed when widget is dismissed.
 
+  // Get list of lot names from backend, display them in list
+  List<Lot> lots = [];
+
+  // Tracks which sort mode is active (availability or size)
+  bool _sortByAvailability = true;
+
+  Future<void> loadLots() async {
+    final names = await requests.fetchLotNames();
+    if (names != null) {
+      lots = names.map((name) => Lot(lotName: name)).toList();
+    }
+  }
+
+  // Initial state of widget: get lot data for each info, and then update periodically from there.
   @override
   void initState() {
     super.initState();
-    _loadLots(); // Loads data immediately when this screen first appears
-    _timer = Timer.periodic(
-      const Duration(seconds: 30), // Refreshes every 30 seconds
-      (_) => _loadLots(),
+    loadLots().then((_) {
+      setState(() {});
+      updateLotData();
+    });
+
+    // Every 60 seconds, refresh data
+    timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (timer) => updateLotData(),
     );
   }
 
+  // Cancel timer
   @override
   void dispose() {
-    _timer?.cancel(); // Stop timer when leaving screen
+    timer.cancel();
     super.dispose();
   }
 
-  // Reads the lot_summary table and updates the UI with latest data
-  Future<void> _loadLots() async {
-    final db = await appdb.AppDatabase.open();
-    final rows = await db.query(
-      'lot_summary',
-      columns: ['lot_code', 'free', 'total_spaces'],
-      orderBy: 'lot_code ASC',
-    );
-    setState(() => _lots = rows);
+  // For each lot, get data from backend on how many spots available & then update UI.
+  Future<void> updateLotData() async {
+    for (Lot lot in lots) {
+      final data = await requests.fetchLotInfo(lot.lotName);
+
+      if (data != null) {
+        setState(() {
+          // Updates UI
+          // Update lot data
+          lot.availableSpots = data['available_spots'];
+          lot.totalSpots = data['total_spots'];
+        });
+      }
+    }
+    // After updating all lots, reapply current sort mode
+    _sortLots();
   }
 
+  // Sorts the lots by either availability (free spaces) or total size
+  void _sortLots() {
+    setState(() {
+      if (_sortByAvailability) {
+        lots.sort(
+          (a, b) => (b.availableSpots ?? 0).compareTo(a.availableSpots ?? 0),
+        );
+      } else {
+        lots.sort((a, b) => (b.totalSpots ?? 0).compareTo(a.totalSpots ?? 0));
+      }
+      _sortByAvailability = !_sortByAvailability; // toggles the next sort mode
+    });
+  }
+
+  // Build methods called anytime Flutter rebuilds UI, returns Widget
   @override
   Widget build(BuildContext context) {
     return Container(
       color: _cream, // Page background for this list
-      child: ListView.separated(
+      child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        itemCount: _lots.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final row = _lots[index];
-          final title = (row['lot_code'] ?? '').toString();
-          final free = row['free']?.toString() ?? '?';
-          final total = row['total_spaces']?.toString() ?? '?';
-          final subtitle = '$free / $total spots available';
-
-          return _LotCard(
-            title: title,
-            subtitle: subtitle,
-            icon: Icons.local_parking,
-            onTap: () {
-              // Opens detail page showing map of this specific lot
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => LotsInfoScreen(
-                    lot: Lot(lotName: title), // Lot from lib/lot.dart
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header row and sort button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Parking Lots',
+                  style: TextStyle(
+                    fontFamily: 'Merriweather',
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: _blue,
                   ),
                 ),
-              );
-            },
-          );
-        },
+                ElevatedButton(
+                  onPressed: _sortLots,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _blue,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                  child: Text(
+                    _sortByAvailability
+                        ? 'Sort by Size'
+                        : 'Sort by Availability',
+                    style: const TextStyle(
+                      fontFamily: 'Merriweather',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13.5,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // List of parking lots
+            Expanded(
+              child: ListView.separated(
+                itemCount: lots.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final lot = lots[index];
+                  final title = lot.lotName;
+                  final free = lot.availableSpots?.toString() ?? '?';
+                  final total = lot.totalSpots?.toString() ?? '?';
+                  final subtitle = '$free / $total spots available';
+
+                  return _LotCard(
+                    title: title,
+                    subtitle: subtitle,
+                    icon: Icons.local_parking,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LotsInfoScreen(
+                            lot: lot, // Pass full lot object
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -100,27 +100,45 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
                   if (currentLot.lotMap != null)
                     Column(
                       children: currentLot.lotMap!.map<Widget>((row) {
-                        return Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: (row as List).map<Widget>((spot) {
-                            final occupied = (spot as Map)['occupied'] == true;
-                            return Container(
-                              width: 40,
-                              height: 70,
-                              margin: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: occupied ? Colors.red : Colors.green,
-                                borderRadius: BorderRadius.circular(6),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Colors.black12,
-                                    blurRadius: 2,
-                                    offset: Offset(0, 1),
+                        return Column(
+                          children: [
+                            Row(
+                              // create a physical row widget on the UI, its children are the individual spots...
+                              mainAxisAlignment: MainAxisAlignment
+                                  .center, // Align spots to center
+                              children: (row as List).map<Widget>((spot) {
+                                final occupied =
+                                    (spot as Map)['occupied'] == true;
+                                return Container(
+                                  width: 40,
+                                  height: 70,
+                                  margin: const EdgeInsets.all(4),
+                                  decoration: BoxDecoration(
+                                    color: occupied ? Colors.red : Colors.green,
+                                    borderRadius: BorderRadius.circular(6),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 2,
+                                        offset: Offset(0, 1),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                );
+                              }).toList(),
+                            ),
+                            // After every row of spots, add a parking line horizontally.
+                            if (row !=
+                                currentLot
+                                    .lotMap!
+                                    .last) // If row is NOT last row in list, add line
+                              Container(
+                                width: (row as List).length * (48),
+                                color: Colors.white,
+                                height: 5,
+                                margin: const EdgeInsets.symmetric(vertical: 1),
                               ),
-                            );
-                          }).toList(),
+                          ],
                         );
                       }).toList(),
                     )
