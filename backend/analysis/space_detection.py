@@ -217,8 +217,8 @@ def define_spots(empty_lot):
 
     # apply a mask that masks anything outside a white range 
     # (space lines are white)
-    lower_white = numpy.array([0, 0, 200])
-    upper_white = numpy.array([180, 25, 255])
+    lower_white = numpy.array([0, 0, 225])
+    upper_white = numpy.array([255, 255, 255])
     mask = cv2.inRange(hsv, lower_white, upper_white)
 
     # detect straight lines in the image
@@ -231,7 +231,7 @@ def define_spots(empty_lot):
                             maxLineGap=10)       # lines may have a x pixel gap
 
     # merge close together lines
-    merged_lines = merge_lines(5, 100, lines)
+    merged_lines = merge_lines(5, 20, lines)
 
     # find all intersection points in image
     intersect_points = calc_intersects(merged_lines)
@@ -275,6 +275,7 @@ def detect_fullness(empty_lot, live_lot, dimensions, spots):
     # subtract the empty lot from the live lot, gray scale for color
     # consistency
     subtracted_lot = cv2.absdiff(empty_lot, live_lot)
+    cv2.threshold(subtracted_lot, 25, 255, cv2.THRESH_BINARY, subtracted_lot)
     gray_subtracted = cv2.cvtColor(subtracted_lot, cv2.COLOR_BGR2GRAY)
 
     # check spot detection zones for certain amount of changed
