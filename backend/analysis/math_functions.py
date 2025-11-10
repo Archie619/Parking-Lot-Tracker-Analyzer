@@ -158,3 +158,53 @@ def calc_intersect_line_points(intersect_lines: list):
         intersect_line_points.append((x2, y2))
 
     return intersect_line_points
+
+
+
+'''
+Clean fragment lines post-merge
+
+Inputs:
+    lines: list of line segments post-merge
+
+Outputs:
+    lines: cleansed list of lines with fragment lines removed
+'''
+def clean_fragment_lines(lines):
+
+    # remove any incomplete lines (lines that contain a None point)
+    i = 0
+    while i < len(lines):
+        x1, y1, x2, y2 = lines[i][0]
+        if x1 is None or y1 is None or x2 is None or y2 is None:
+            lines.pop(i)
+        else:
+            i += 1
+
+    # remove lines where the start AND end points are close to within the line
+    i, j = 0, 0
+    while i < len(lines):
+        x1_1, y1_1, x2_1, y2_1 = lines[i][0]
+        while j < len(lines):
+            x1_2, y1_2, x2_2, y2_2 = lines[j][0]
+            if lines[j][0] == lines[i][0]:
+                j += 1
+                continue
+            # Distance from point to line segment
+            # https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+            dist_from_s_1 = abs(((y2_1 - y1_1) * x1_2) - ((x2_1 - x1_1) * y1_2) + 
+                                (x2_1 * y1_1) - (y2_1 * x1_1)) / math.sqrt(
+                                (y2_1 - y1_1)**2 + (x2_1 - x1_1)**2)
+            dist_from_e_1 = abs(((y2_1 - y1_1) * x2_2) - ((x2_1 - x1_1) * y2_2) + 
+                                (x2_1 * y1_1) - (y2_1 * x1_1)) / math.sqrt(
+                                (y2_1 - y1_1)**2 + (x2_1 - x1_1)**2)
+            if dist_from_s_1 < 10 and dist_from_e_1 < 10:
+                lines.pop(j)
+                i = -1
+                break
+            else:
+                j += 1
+        i += 1
+        j = 0
+
+    return lines

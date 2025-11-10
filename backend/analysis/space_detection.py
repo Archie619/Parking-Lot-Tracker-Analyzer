@@ -1,5 +1,6 @@
 import cv2, numpy
-from analysis.math_functions import merge_lines, calc_intersects, calc_intersect_line_points
+from analysis.math_functions import (merge_lines, calc_intersects, calc_intersect_line_points,
+                                    clean_fragment_lines)
 
 '''
 Define parking space lines as:
@@ -69,8 +70,8 @@ def calc_space_lines(lines: list,
                 ip_x2, ip_y2, line_1_2, line_2_2 = intersect_points[i + 1]
                 intersect_lines.append((ip_x1, ip_y1, ip_x2, ip_y2)) 
             # intersection point -> endpoint
-            intersect_lines.append((intersect_points[len(intersect_lines) - 1][0],
-                                    intersect_points[len(intersect_lines) - 1][1],
+            intersect_lines.append((intersect_points[(len(intersect_lines) % len(intersect_points)) - 1][0],
+                                    intersect_points[(len(intersect_lines) % len(intersect_points)) - 1][1],
                                     end_x, end_y))
 
         # reset line intersection counts
@@ -201,6 +202,44 @@ def build_spots(space_lines: list, intersect_lines: list, side: int):
 
 
 '''
+Blackout the background that isn't the parking lot
+
+Inputs:
+    empty_lot: empty image of lot
+
+Outputs:
+    rb_lot: removed background lot image
+'''
+def remove_background(empty_lot):
+    
+    # find contours (continous shapes) within image
+    gray = cv2.cvtColor(empty_lot, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+
+    # look at the continous shapes identified, the one with the largest area
+    # will be our lot
+    max_area = 0
+    for c in cnts:
+        _, _, w, h = cv2.boundingRect(c)
+        if w * h > max_area:
+            max_area = w * h
+            saved_c = c
+    
+    # take the largest area contour and make it a polygon
+    epsilion = 0.02 * cv2.arcLength(saved_c, True)
+    approx = cv2.approxPolyDP(saved_c, epsilion, True)
+
+    # mask out everything from our image that isn't the polygon (lot)
+    mask_noise = numpy.zeros_like(empty_lot, numpy.uint8)
+    cv2.fillPoly(mask_noise, [approx], (255, 255, 255))
+    rb_lot = cv2.bitwise_and(empty_lot, mask_noise)
+
+    return rb_lot
+
+
+
+'''
 Detect spots in an empty lot
 
 Inputs:
@@ -212,13 +251,16 @@ Outputs:
 '''
 def define_spots(empty_lot):
 
+    # remove the background (everything that isn't the lot)
+    empty_lot = remove_background(empty_lot)
+
     # convert to HSV (Hue, Saturation, Brightness)
     hsv = cv2.cvtColor(empty_lot, cv2.COLOR_BGR2HSV)
 
     # apply a mask that masks anything outside a white range 
     # (space lines are white)
-    lower_white = numpy.array([0, 0, 225])
-    upper_white = numpy.array([255, 255, 255])
+    lower_white = numpy.array([0, 0, 180])
+    upper_white = numpy.array([179, 100, 255])
     mask = cv2.inRange(hsv, lower_white, upper_white)
 
     # detect straight lines in the image
@@ -229,9 +271,18 @@ def define_spots(empty_lot):
                                                  # to be considered a line
                             minLineLength=50,    # lines must be x pixels long
                             maxLineGap=10)       # lines may have a x pixel gap
+    
+    # standardize line start & end 
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        if y2 < y1:
+            line[0] = x2, y2, x1, y1
 
     # merge close together lines
     merged_lines = merge_lines(5, 20, lines)
+
+    # clean small fragment lines that escaped merging
+    merged_lines = clean_fragment_lines(merged_lines)
 
     # find all intersection points in image
     intersect_points = calc_intersects(merged_lines)
