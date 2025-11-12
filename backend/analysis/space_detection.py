@@ -326,8 +326,8 @@ def detect_fullness(empty_lot, live_lot, dimensions, spots):
     # subtract the empty lot from the live lot, gray scale for color
     # consistency
     subtracted_lot = cv2.absdiff(empty_lot, live_lot)
-    cv2.threshold(subtracted_lot, 25, 255, cv2.THRESH_BINARY, subtracted_lot)
     gray_subtracted = cv2.cvtColor(subtracted_lot, cv2.COLOR_BGR2GRAY)
+    cv2.threshold(gray_subtracted, 55, 255, cv2.THRESH_BINARY, gray_subtracted)
 
     # check spot detection zones for certain amount of changed
     # pixels; if over threshold, spot occupied
@@ -346,7 +346,7 @@ def detect_fullness(empty_lot, live_lot, dimensions, spots):
             percent_filled = (changed_pixels / spot_area) * 100
 
             total_spots += 1
-            if percent_filled > 20:
+            if percent_filled > 25:
                 spot_row_occupancy.append({'spot_id': total_spots,
                                            'occupied': True})
             else:
