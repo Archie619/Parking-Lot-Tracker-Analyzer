@@ -5,6 +5,8 @@ from analysis.math_functions import (merge_lines, calc_intersects, calc_intersec
 img_w = 800
 img_h = 444
 
+points = []
+
 '''
 Define parking space lines as:
     startpoint -> intersection point
@@ -205,40 +207,45 @@ def build_spots(space_lines: list, intersect_lines: list, side: int):
 
 
 '''
+Function for handling the clicks on the image to remove the background
+
+Inputs:
+    None
+
+Outputs:
+    None
+'''
+def click(event, x, y, flags, param):
+    if event == 1 and len(points) < 4:
+        points.append((x, y))
+        if len(points) == 4:
+            cv2.destroyAllWindows()
+
+
+
+'''
 Blackout the background that isn't the parking lot
 
 Inputs:
     empty_lot: empty image of lot
 
 Outputs:
-    rb_lot: removed background lot image
+    empty_lot: removed background empty lot image
 '''
 def remove_background(empty_lot):
     
-    # find contours (continous shapes) within image
-    gray = cv2.cvtColor(empty_lot, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
-    cnts = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[0]
+    global points
+    points = []
 
-    # look at the continous shapes identified, the one with the largest area
-    # will be our lot
-    max_area = 0
-    for c in cnts:
-        _, _, w, h = cv2.boundingRect(c)
-        if w * h > max_area:
-            max_area = w * h
-            saved_c = c
-    
-    # take the largest area contour and make it a polygon
-    epsilion = 0.02 * cv2.arcLength(saved_c, True)
-    approx = cv2.approxPolyDP(saved_c, epsilion, True)
+    cv2.imshow('Click Lot Points', empty_lot)
+    cv2.setMouseCallback('Click Lot Points', click)
+    cv2.waitKey(0)
 
-    # mask out everything from our image that isn't the polygon (lot)
-    mask_noise = numpy.zeros_like(empty_lot, numpy.uint8)
-    cv2.fillPoly(mask_noise, [approx], (255, 255, 255))
-    rb_lot = cv2.bitwise_and(empty_lot, mask_noise)
+    mask = numpy.zeros(empty_lot.shape[:2], dtype=numpy.uint8)
+    cv2.fillPoly(mask, [numpy.array(points)], 255)
+    empty_lot[mask == 0] = 0
 
-    return rb_lot
+    return empty_lot
 
 
 
@@ -404,9 +411,8 @@ def remove_outlier_spots(spots: list):
             else:
                 j += 1
         if len(spots[i]) < 2:
-            spots.pop(i)
-        else:
-            i += 1
+            spots[i] = []
+        i += 1
         j = 0
 
     return spots
@@ -511,7 +517,7 @@ def define_spots(empty_lot):
     #  BRING SPACES TOGETHER  #
     ###########################
 
-    # build list of all spots in the lot; separate rows
+    # build list of all spots in the lot; separate by type
     spots = []
     spots += [top_spots]
     spots += [build_spots(space_lines_side1, intersect_lines, 1)]
