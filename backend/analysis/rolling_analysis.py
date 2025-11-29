@@ -119,4 +119,3 @@ def begin_rolling_analysis():
                 lot_previews[lots[i]["name"]] = {'available': a_spots,
                                                 'total': t_spots}
                 logging.info(f"Lot {lots[i]['name']}'s detection information updated")
-show_detection_as_image(".\images\empty_simple_edited.jpg", ".\images\empty_simple_live.jpg")

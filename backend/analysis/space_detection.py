@@ -259,8 +259,12 @@ def classify_lines(lines: list, empty_lot):
 
     offset = 25    # pixel offset allowed for lot edge classification
 
-    start_point_edge = False   # start point is close to edge of lot
-    end_point_edge = False     # end point is close to edge of lot
+    start_point_edge_T = False   # start point is close to top edge of lot
+    start_point_edge_L = False   # start point is close to left edge of lot
+    end_point_edge_B = False     # end point is close to bottom edge of lot
+    end_point_edge_R = False     # end point is close to right edge of lot
+
+    edge_added = False
 
     edge_lines = []
     inner_lines= []
@@ -274,26 +278,138 @@ def classify_lines(lines: list, empty_lot):
         # set offsets
         top_offset = y1 - offset if y1 - offset >= 0 else 0
         bottom_offset = y2 + offset if y2 + offset <= img_h - 1 else img_h - 1
+        left_offset = x1 - offset if x1 - offset >= 0 else 0
+        right_offset = x2 + offset if x2 + offset <= img_w else img_w - 1
 
         if all(val == 0 for val in empty_lot[top_offset][x1]):
-            start_point_edge = True
+            start_point_edge_T = True
             loc = 'top'
         if all(val == 0 for val in empty_lot[bottom_offset][x2]):
-            end_point_edge = True
+            end_point_edge_B = True
             loc = 'bottom'
-        #if all(val == 0 for val in empty_lot[][]):
-        #    loc = 'left'
-        #if all(val == 0 for val in empty_lot[][]):
-        #    loc = 'right'
-
-        if start_point_edge ^ end_point_edge:
+        if start_point_edge_T ^ end_point_edge_B:
+            edge_added = True
             edge_lines.append((line, loc))
-        else:
+
+        if all(val == 0 for val in empty_lot[y1][left_offset]):
+            start_point_edge_L = True
+            loc = 'left'
+        if all(val == 0 for val in empty_lot[y2][right_offset]):
+            end_point_edge_R = True
+            loc = 'right'
+        if start_point_edge_L ^ end_point_edge_R:
+            edge_added = True
+            edge_lines.append((line, loc))
+
+        if not edge_added:
             inner_lines.append(line)
-        start_point_edge = False
-        end_point_edge = False
+
+        start_point_edge_T = False
+        start_point_edge_L = False
+        end_point_edge_B = False
+        end_point_edge_R = False
+        edge_added = False
     
     return edge_lines, inner_lines
+
+
+
+'''
+Build edge spots using edge lines
+
+Inputs:
+    edge_lines: list of edge lines to build spots from
+    axis: str representing axis to care about for searching
+
+Outputs:
+    edge_spots: list of spots created from edge lines
+'''
+def build_edge_spots(edge_lines: list, axis: str):
+
+    # get rid of outlier lines based on angle
+    angles = []
+    for line in edge_lines:
+        x1, y1, x2, y2 = line[0]
+        angles.append(math.degrees(math.atan2(y2 - y1, x2 - x1)))
+    median_ang = numpy.median(angles)
+
+    i = 0
+    while i < len(edge_lines):
+        x1, y1, x2, y2 = edge_lines[i][0]
+        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
+
+        diff = abs(ang - median_ang)
+        if diff > 180:
+            diff = 360 - diff
+
+        if diff <= 15:
+            i += 1
+        else:
+            edge_lines.pop(i)
+
+    # order lines left based on their x startpoint
+    if axis == 'x':
+        edge_lines = sorted(edge_lines, key=lambda x: x[0][0])
+    if axis == 'y':
+        edge_lines = sorted(edge_lines, key=lambda y: y[0][1])
+
+    # with lines ordered, from left to right build spots
+    i = 0
+    edge_spots = []
+    while i < len(edge_lines) - 1:
+        x1_1, y1_1, x2_1, y2_1 = edge_lines[i][0]      # spot line 1
+        x1_2, y1_2, x2_2, y2_2 = edge_lines[i + 1][0]  # spot line 2
+        edge_spots.append(((x1_1, y1_1), (x2_1, y2_1), (x2_2, y2_2), (x1_2, y1_2)))
+        i += 1
+
+    return edge_spots
+
+
+
+'''
+Once spots are calculated, remove the outliers; outliers are either spots
+with too large / too small of areas or only a couple spots on a side
+
+Inputs: 
+    spots: list of spots which contain 4 tuples of points
+
+Outputs:
+    spots: trimmed list of spots which contain 4 tuples of points
+'''
+def remove_outlier_spots(spots: list):
+
+    # calculate the median area
+    all_areas = []
+    for spot_row in spots:
+        for spot in spot_row:
+            all_x = [point[0] for point in spot]
+            all_y = [point[1] for point in spot]
+            area = 0.5 * abs(sum((all_x[i] * all_y[i + 1]) - (all_x[i + 1] * all_y[i]) 
+                                 for i in range(-1, len(all_x) - 1)))
+            all_areas.append(area)
+    median_area = numpy.median(all_areas)
+
+    # look through all spots; remove spots based on outlier area
+    # or outlier row length
+    i = 0
+    j = 0
+    while i < len(spots):
+        while j < len(spots[i]):
+            all_x = [point[0] for point in spots[i][j]]
+            all_y = [point[1] for point in spots[i][j]]
+            area = 0.5 * abs(sum((all_x[i] * all_y[i + 1]) - (all_x[i + 1] * all_y[i]) 
+                                 for i in range(-1, len(all_x) - 1)))
+            if area >= median_area * 2 or area <= median_area * 0.5:
+                spots[i].pop(j)
+            else:
+                j += 1
+        if len(spots[i]) < 2:
+            spots.pop(i)
+        else:
+            i += 1
+        j = 0
+
+    return spots
 
 
 
@@ -341,40 +457,12 @@ def define_spots(empty_lot):
         else:        # closer to horizontal than vertical
             if x2 < x1:
                 line[0] = x2, y2, x1, y1
-
-    '''
-    for line in lines:
-        x1, y1, x2, y2 = line[0]
-        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
-        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
-    cv2.imshow('unmerged', empty_lot)
-    '''
     
     # merge close together lines
     merged_lines = merge_lines(5, 20, lines)
-
-    #'''
-    for line in merged_lines:
-        x1, y1, x2, y2 = line[0]
-        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
-        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
-    cv2.imshow('merged', empty_lot)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    #'''
     
     # clean small fragment lines that escaped merging
     merged_lines = clean_fragment_lines(merged_lines)
-
-    '''
-    for line in merged_lines:
-        x1, y1, x2, y2 = line[0]
-        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
-        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
-    cv2.imshow('merged', empty_lot)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-    '''
 
     # classify lines based on edge lines inner lines
     edge_lines, inner_lines = classify_lines(merged_lines, empty_lot)
@@ -396,68 +484,10 @@ def define_spots(empty_lot):
             right_lines.append(line[0])
 
     # with the edges sorted, attempt to build spots based on side
-
-    #############
-    #    TOP    #
-    #############
-    # get rid of outlier lines based on angle
-    angles = []
-    for line in top_lines:
-        x1, y1, x2, y2 = line[0]
-        angles.append(math.degrees(math.atan2(y2 - y1, x2 - x1)))
-    mean = numpy.mean(angles)
-    std_dev = numpy.std(angles)
-    threshold_upper = mean + (1.8 * std_dev)
-    threshold_lower = mean - (1.8 * std_dev)
-    i = 0
-    while i < len(top_lines):
-        x1, y1, x2, y2 = top_lines[i][0]
-        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
-        if threshold_lower <= ang <= threshold_upper:
-            i += 1
-        else:
-            top_lines.pop(i)
-    # order lines left based on their x startpoint
-    top_lines = sorted(top_lines, key=lambda x: x[0][0])
-    # with lines ordered, from left to right build spots
-    i = 0
-    top_spots = []
-    while i < len(top_lines) - 1:
-        x1_1, y1_1, x2_1, y2_1 = top_lines[i][0]      # spot line 1
-        x1_2, y1_2, x2_2, y2_2 = top_lines[i + 1][0]  # spot line 2
-        top_spots.append(((x1_1, y1_1), (x2_1, y2_1), (x2_2, y2_2), (x1_2, y1_2)))
-        i += 1
-
-    #############
-    #  BOTTOM   #
-    #############
-    # get rid of outlier lines based on angle
-    angles = []
-    for line in bottom_lines:
-        x1, y1, x2, y2 = line[0]
-        angles.append(math.degrees(math.atan2(y2 - y1, x2 - x1)))
-    mean = numpy.mean(angles)
-    std_dev = numpy.std(angles)
-    threshold_upper = mean + (1.8 * std_dev)
-    threshold_lower = mean - (1.8 * std_dev)
-    i = 0
-    while i < len(bottom_lines):
-        x1, y1, x2, y2 = bottom_lines[i][0]
-        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
-        if threshold_lower <= ang <= threshold_upper:
-            i += 1
-        else:
-            bottom_lines.pop(i)
-    # order lines left based on their x startpoint
-    bottom_lines = sorted(bottom_lines, key=lambda x: x[0][0])
-    # with lines ordered, from left to right build spots
-    i = 0
-    bottom_spots = []
-    while i < len(bottom_lines) - 1:
-        x1_1, y1_1, x2_1, y2_1 = bottom_lines[i][0]      # spot line 1
-        x1_2, y1_2, x2_2, y2_2 = bottom_lines[i + 1][0]  # spot line 2
-        bottom_spots.append(((x1_1, y1_1), (x2_1, y2_1), (x2_2, y2_2), (x1_2, y1_2)))
-        i += 1
+    top_spots = build_edge_spots(top_lines, 'x')
+    bottom_spots = build_edge_spots(bottom_lines, 'x')
+    left_spots = build_edge_spots(left_lines, 'y')
+    right_spots = build_edge_spots(right_lines, 'y')
     
     ###########################
     #    INNER LINES LOGIC    #
@@ -487,6 +517,10 @@ def define_spots(empty_lot):
     spots += [build_spots(space_lines_side1, intersect_lines, 1)]
     spots += [build_spots(space_lines_side2, intersect_lines, 2)]
     spots += [bottom_spots]
+    spots += [left_spots]     # NOTE: THIS IS OBVIOUS NOT ACCURATE; CHANGE LATER
+    spots += [right_spots]    # NOTE: THIS IS OBVIOUS NOT ACCURATE; CHANGE LATER
+
+    spots = remove_outlier_spots(spots)
 
     return spots
 
