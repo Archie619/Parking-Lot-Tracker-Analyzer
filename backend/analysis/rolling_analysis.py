@@ -1,9 +1,6 @@
 import cv2, numpy
 import logging
-from analysis.space_detection import define_spots, detect_fullness
-
-img_w = 800
-img_h = 444
+from analysis.space_detection import define_spots, detect_fullness, img_w, img_h
 
 lots = []   
 lot_maps = {}
@@ -122,3 +119,4 @@ def begin_rolling_analysis():
                 lot_previews[lots[i]["name"]] = {'available': a_spots,
                                                 'total': t_spots}
                 logging.info(f"Lot {lots[i]['name']}'s detection information updated")
+show_detection_as_image(".\images\empty_simple_edited.jpg", ".\images\empty_simple_live.jpg")

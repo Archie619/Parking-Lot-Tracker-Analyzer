@@ -1,6 +1,9 @@
-import cv2, numpy
+import cv2, numpy, math
 from analysis.math_functions import (merge_lines, calc_intersects, calc_intersect_line_points,
                                     clean_fragment_lines)
+
+img_w = 800
+img_h = 444
 
 '''
 Define parking space lines as:
@@ -240,6 +243,61 @@ def remove_background(empty_lot):
 
 
 '''
+Classify lines based on whether they can make spots on
+the edge of the lot or on the inside of the lot
+
+Inputs:
+    lines: list of all lines detected in the lot
+
+Outputs:
+    edge_lines: list of lines that are on the edge of the lot
+                (used to make lot edge spaces)
+    inner_lines: list of lines that are on the inside of the lot
+                 (used to make inner lot spaces)
+'''
+def classify_lines(lines: list, empty_lot):
+
+    offset = 25    # pixel offset allowed for lot edge classification
+
+    start_point_edge = False   # start point is close to edge of lot
+    end_point_edge = False     # end point is close to edge of lot
+
+    edge_lines = []
+    inner_lines= []
+
+    # for each line, check if the start XOR the end point
+    # of the line is close to the lot edge; if it is classify
+    # as a edge line, else a inner line
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+
+        # set offsets
+        top_offset = y1 - offset if y1 - offset >= 0 else 0
+        bottom_offset = y2 + offset if y2 + offset <= img_h - 1 else img_h - 1
+
+        if all(val == 0 for val in empty_lot[top_offset][x1]):
+            start_point_edge = True
+            loc = 'top'
+        if all(val == 0 for val in empty_lot[bottom_offset][x2]):
+            end_point_edge = True
+            loc = 'bottom'
+        #if all(val == 0 for val in empty_lot[][]):
+        #    loc = 'left'
+        #if all(val == 0 for val in empty_lot[][]):
+        #    loc = 'right'
+
+        if start_point_edge ^ end_point_edge:
+            edge_lines.append((line, loc))
+        else:
+            inner_lines.append(line)
+        start_point_edge = False
+        end_point_edge = False
+    
+    return edge_lines, inner_lines
+
+
+
+'''
 Detect spots in an empty lot
 
 Inputs:
@@ -267,28 +325,149 @@ def define_spots(empty_lot):
     lines = cv2.HoughLinesP(mask,
                             rho=1,               # indiv. pixel granularity
                             theta=numpy.pi/180,  # sweep image in 1 deg incs
-                            threshold=80,        # x pixel hits during sweep 
+                            threshold=40,        # x pixel hits during sweep 
                                                  # to be considered a line
                             minLineLength=50,    # lines must be x pixels long
                             maxLineGap=10)       # lines may have a x pixel gap
     
-    # standardize line start & end 
+    # standardize line start & end
     for line in lines:
         x1, y1, x2, y2 = line[0]
-        if y2 < y1:
-            line[0] = x2, y2, x1, y1
+        dy = abs(y2 - y1)
+        dx = abs(x2 - x1)
+        if dy > dx:  # closer to vertical than horizontal
+            if y2 < y1:
+                line[0] = x2, y2, x1, y1
+        else:        # closer to horizontal than vertical
+            if x2 < x1:
+                line[0] = x2, y2, x1, y1
 
+    '''
+    for line in lines:
+        x1, y1, x2, y2 = line[0]
+        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
+        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
+    cv2.imshow('unmerged', empty_lot)
+    '''
+    
     # merge close together lines
     merged_lines = merge_lines(5, 20, lines)
 
+    #'''
+    for line in merged_lines:
+        x1, y1, x2, y2 = line[0]
+        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
+        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
+    cv2.imshow('merged', empty_lot)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    #'''
+    
     # clean small fragment lines that escaped merging
     merged_lines = clean_fragment_lines(merged_lines)
 
+    '''
+    for line in merged_lines:
+        x1, y1, x2, y2 = line[0]
+        cv2.circle(empty_lot, (x1, y1), 5, (0, 255, 0), -1)
+        cv2.circle(empty_lot, (x2, y2), 5, (255, 0, 0), -1)
+    cv2.imshow('merged', empty_lot)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+    '''
+
+    # classify lines based on edge lines inner lines
+    edge_lines, inner_lines = classify_lines(merged_lines, empty_lot)
+
+    ###########################
+    #    EDGE LINES LOGIC     #
+    ###########################
+
+    # sort edge lines by edge side
+    top_lines, bottom_lines, left_lines, right_lines = [], [], [], []
+    for line in edge_lines:
+        if line[1] == 'top':
+            top_lines.append(line[0])
+        elif line[1] == 'bottom':
+            bottom_lines.append(line[0])
+        elif line[1] == 'left':
+            left_lines.append(line[0])
+        else:
+            right_lines.append(line[0])
+
+    # with the edges sorted, attempt to build spots based on side
+
+    #############
+    #    TOP    #
+    #############
+    # get rid of outlier lines based on angle
+    angles = []
+    for line in top_lines:
+        x1, y1, x2, y2 = line[0]
+        angles.append(math.degrees(math.atan2(y2 - y1, x2 - x1)))
+    mean = numpy.mean(angles)
+    std_dev = numpy.std(angles)
+    threshold_upper = mean + (1.8 * std_dev)
+    threshold_lower = mean - (1.8 * std_dev)
+    i = 0
+    while i < len(top_lines):
+        x1, y1, x2, y2 = top_lines[i][0]
+        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        if threshold_lower <= ang <= threshold_upper:
+            i += 1
+        else:
+            top_lines.pop(i)
+    # order lines left based on their x startpoint
+    top_lines = sorted(top_lines, key=lambda x: x[0][0])
+    # with lines ordered, from left to right build spots
+    i = 0
+    top_spots = []
+    while i < len(top_lines) - 1:
+        x1_1, y1_1, x2_1, y2_1 = top_lines[i][0]      # spot line 1
+        x1_2, y1_2, x2_2, y2_2 = top_lines[i + 1][0]  # spot line 2
+        top_spots.append(((x1_1, y1_1), (x2_1, y2_1), (x2_2, y2_2), (x1_2, y1_2)))
+        i += 1
+
+    #############
+    #  BOTTOM   #
+    #############
+    # get rid of outlier lines based on angle
+    angles = []
+    for line in bottom_lines:
+        x1, y1, x2, y2 = line[0]
+        angles.append(math.degrees(math.atan2(y2 - y1, x2 - x1)))
+    mean = numpy.mean(angles)
+    std_dev = numpy.std(angles)
+    threshold_upper = mean + (1.8 * std_dev)
+    threshold_lower = mean - (1.8 * std_dev)
+    i = 0
+    while i < len(bottom_lines):
+        x1, y1, x2, y2 = bottom_lines[i][0]
+        ang = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        if threshold_lower <= ang <= threshold_upper:
+            i += 1
+        else:
+            bottom_lines.pop(i)
+    # order lines left based on their x startpoint
+    bottom_lines = sorted(bottom_lines, key=lambda x: x[0][0])
+    # with lines ordered, from left to right build spots
+    i = 0
+    bottom_spots = []
+    while i < len(bottom_lines) - 1:
+        x1_1, y1_1, x2_1, y2_1 = bottom_lines[i][0]      # spot line 1
+        x1_2, y1_2, x2_2, y2_2 = bottom_lines[i + 1][0]  # spot line 2
+        bottom_spots.append(((x1_1, y1_1), (x2_1, y2_1), (x2_2, y2_2), (x1_2, y1_2)))
+        i += 1
+    
+    ###########################
+    #    INNER LINES LOGIC    #
+    ###########################
+
     # find all intersection points in image
-    intersect_points = calc_intersects(merged_lines)
+    intersect_points = calc_intersects(inner_lines)
 
     # acquire lines used to define a parking space
-    space_lines_side1, space_lines_side2, intersect_lines = calc_space_lines(merged_lines,
+    space_lines_side1, space_lines_side2, intersect_lines = calc_space_lines(inner_lines,
                                                                             intersect_points)
 
     # decompose intersect line list into list of points
@@ -298,10 +477,16 @@ def define_spots(empty_lot):
     prune_space_lines(space_lines_side1, intersect_line_points)
     prune_space_lines(space_lines_side2, intersect_line_points)
 
+    ###########################
+    #  BRING SPACES TOGETHER  #
+    ###########################
+
     # build list of all spots in the lot; separate rows
     spots = []
+    spots += [top_spots]
     spots += [build_spots(space_lines_side1, intersect_lines, 1)]
     spots += [build_spots(space_lines_side2, intersect_lines, 2)]
+    spots += [bottom_spots]
 
     return spots
 
