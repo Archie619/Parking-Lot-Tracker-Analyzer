@@ -498,16 +498,17 @@ def build_realistic_map(spots: list):
 
     # put middle group in the middle of nulls, if lot has edges, if not 
     # only spots in lot
-    if top != [] and bottom != [] and left != [] and right != []:
-        mid_vert = int((len(realistic_spots) - 2) / 2)
-        mid_horiz = int((len(realistic_spots[mid_vert]) - 2) / 2)
-        start_horiz = mid_horiz - int(len(mid_1) / 2)
-        for i in range(start_horiz, start_horiz + len(mid_1)):
-            realistic_spots[mid_vert][i] = mid_1[i - start_horiz]
-            realistic_spots[mid_vert + 1][i] =  mid_2[i - start_horiz]
-    else:
-        realistic_spots.append(mid_1)
-        realistic_spots.append(mid_2)
+    if mid_1 != [] and mid_2 != []:
+        if top != [] and bottom != [] and left != [] and right != []:
+            mid_vert = int((len(realistic_spots) - 2) / 2)
+            mid_horiz = int((len(realistic_spots[mid_vert]) - 2) / 2)
+            start_horiz = mid_horiz - int(len(mid_1) / 2)
+            for i in range(start_horiz, start_horiz + len(mid_1)):
+                realistic_spots[mid_vert][i] = mid_1[i - start_horiz]
+                realistic_spots[mid_vert + 1][i] =  mid_2[i - start_horiz]
+        else:
+            realistic_spots.append(mid_1)
+            realistic_spots.append(mid_2)
 
     return realistic_spots
 
