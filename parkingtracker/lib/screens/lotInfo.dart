@@ -39,7 +39,7 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
     currentLot = widget.lot;
     updateLotMap();
 
-    // Every 30 seconds, refresh data
+    // Every 10 seconds, refresh data
     timer = Timer.periodic(
       const Duration(seconds: 10),
       (timer) => updateLotMap(),
@@ -62,8 +62,8 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
         // Updates UI
         // Update lot map/spots
         currentLot.lotMap = data;
-        currentLot = spots['available_spots'];
-        currentLot = spots['total_spots'];
+        currentLot.availableSpots = spots['available_spots'];
+        currentLot.totalSpots = spots['total_spots'];
       });
     }
   }
