@@ -420,6 +420,100 @@ def remove_outlier_spots(spots: list):
 
 
 '''
+Take trimmed map and make the simplified map more realistic to the
+actual lot setup
+
+Inputs:
+    spots: spot map where everything is left justified, left and right on bottom indexes
+
+Outputs:
+    realistic_spots: spot map where map represents actual lot setup
+'''
+def build_realistic_map(spots: list):
+
+    realistic_spots = []
+
+    top = spots[0]
+    mid_1 = spots[1]
+    mid_2 = spots[2]
+    bottom = spots[3]
+    left = spots[4]
+    right = spots[5]
+
+    null_spot = ((-1, -1), (-1, -1), (-1, -1), (-1, -1))
+
+    # take tops and bottoms IF they aren't empty, pad the shorter one
+    # with nulls
+    pad_len = 0
+    if top != [] and bottom != []:
+        if len(top) > len(bottom):
+            for _ in range(len(bottom), len(top)):
+                bottom.append(null_spot)
+            realistic_spots.append(top)
+            realistic_spots.append(bottom)
+            pad_len = len(top)
+        else:
+            for _ in range(len(top), len(bottom)):
+                top.append(null_spot)
+            realistic_spots.append(top)
+            realistic_spots.append(bottom)
+            pad_len = len(bottom)
+    elif top != []:
+        realistic_spots.append(top)
+        pad_len = len(top)
+    elif bottom != []:
+        realistic_spots.append(bottom)
+        pad_len = len(bottom)
+
+    # take lefts and rights IF they aren't empty, pad the shorter one with
+    # nulls (on the vertical), prepend lefts, append rights
+    if left != [] and right != []:
+        if len(left) > len(right):
+            for _ in range(len(right), len(left)):
+                right.append(null_spot)
+            for _ in range(0, len(left)):
+                realistic_spots.insert(1, [null_spot for _ in range(0, pad_len)])
+        else:
+            for _ in range(len(left), len(right)):
+                left.append(null_spot)
+            for _ in range(0, len(right)):
+                realistic_spots.insert(1, [null_spot for _ in range(0, pad_len)])
+    elif left != []:
+        for _ in range(0, len(left)):
+            realistic_spots.insert(1, [null_spot for _ in range(0, pad_len)])
+    elif right != []:
+        for _ in range(0, len(right)):
+            realistic_spots.insert(1, [null_spot for _ in range(0, pad_len)])
+
+    if left != []:
+        realistic_spots[0].insert(0, null_spot)
+        for i in range(1, len(realistic_spots) - 1):
+            realistic_spots[i].insert(0, left[i - 1])
+        realistic_spots[len(realistic_spots) - 1].insert(0, null_spot)
+    if right != []:
+        realistic_spots[0].insert(len(realistic_spots[0]) - 1, null_spot)
+        for i in range(1, len(realistic_spots) - 1):
+            realistic_spots[i].append(right[i - 1])
+        realistic_spots[len(realistic_spots) - 1].append(null_spot)
+
+    # put middle group in the middle of nulls, if lot has edges, if not 
+    # only spots in lot
+    if top != [] and bottom != [] and left != [] and right != []:
+        mid_vert = int((len(realistic_spots) - 2) / 2)
+        mid_horiz = int((len(realistic_spots[mid_vert]) - 2) / 2)
+        start_horiz = mid_horiz - int(len(mid_1) / 2)
+        for i in range(start_horiz, start_horiz + len(mid_1)):
+            realistic_spots[mid_vert][i] = mid_1[i - start_horiz]
+            realistic_spots[mid_vert + 1][i] =  mid_2[i - start_horiz]
+    else:
+        realistic_spots.append(mid_1)
+        realistic_spots.append(mid_2)
+
+    return realistic_spots
+
+
+
+'''
 Detect spots in an empty lot
 
 Inputs:
@@ -523,10 +617,14 @@ def define_spots(empty_lot):
     spots += [build_spots(space_lines_side1, intersect_lines, 1)]
     spots += [build_spots(space_lines_side2, intersect_lines, 2)]
     spots += [bottom_spots]
-    spots += [left_spots]     # NOTE: THIS IS OBVIOUS NOT ACCURATE; CHANGE LATER
-    spots += [right_spots]    # NOTE: THIS IS OBVIOUS NOT ACCURATE; CHANGE LATER
+    spots += [left_spots]
+    spots += [right_spots]
 
     spots = remove_outlier_spots(spots)
+
+    # with outliers removed from spot groups, assemble a map that accurately
+    # represents the lot
+    spots = build_realistic_map(spots)
 
     return spots
 
@@ -560,25 +658,30 @@ def detect_fullness(empty_lot, live_lot, dimensions, spots):
     spot_row_occupancy = []
     available_spots = 0
     total_spots = 0
+    fake_spot_id = 1000
     for spot_row in spots:
         for spot in spot_row:
-            mask = numpy.zeros(dimensions, dtype=numpy.uint8)
-            cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
-            isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
+            if spot[0][0] != -1:
+                mask = numpy.zeros(dimensions, dtype=numpy.uint8)
+                cv2.fillPoly(mask, [numpy.array(spot)], (255, 255, 255))
+                isolated_spot = cv2.bitwise_and(gray_subtracted, gray_subtracted, mask=mask)
 
-            spot_area = cv2.countNonZero(mask)
-            changed_pixels = cv2.countNonZero(isolated_spot)
-            percent_filled = (changed_pixels / spot_area) * 100
+                spot_area = cv2.countNonZero(mask)
+                changed_pixels = cv2.countNonZero(isolated_spot)
+                percent_filled = (changed_pixels / spot_area) * 100
 
-            total_spots += 1
-            if percent_filled > 25:
-                spot_row_occupancy.append({'spot_id': total_spots,
-                                           'occupied': True})
-            else:
-                spot_row_occupancy.append({'spot_id': total_spots,
+                total_spots += 1
+                if percent_filled > 25:
+                    spot_row_occupancy.append({'spot_id': total_spots,
+                                               'occupied': True})
+                else:
+                    spot_row_occupancy.append({'spot_id': total_spots,
+                                               'occupied': False})
+                    available_spots += 1
+            else:  # empty spacer spots don't get a real spot id, any id over 1000 is a "fake" spot
+                spot_row_occupancy.append({'spot_id': fake_spot_id,
                                            'occupied': False})
-                available_spots += 1
-                
+                fake_spot_id += 1
         spot_occupancy.append(spot_row_occupancy)
         spot_row_occupancy = []
     

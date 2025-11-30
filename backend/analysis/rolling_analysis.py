@@ -28,8 +28,6 @@ def show_detection_as_image(e_lot_img: str, l_lot_img: str):
     empty_lot = cv2.resize(empty_lot, (img_w, img_h))
     live_lot = cv2.resize(live_lot, (img_w, img_h))
 
-    cv2.imshow('Analysis', empty_lot)
-
     # identify spots from the empty lot image
     spots = define_spots(empty_lot)
 
