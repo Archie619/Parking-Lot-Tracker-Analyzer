@@ -53,7 +53,7 @@ class _LotsScreenState extends State<LotsScreen> {
 
     // Every 30 seconds, refresh data
     timer = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 10),
       (timer) => updateLotData(),
     );
   }

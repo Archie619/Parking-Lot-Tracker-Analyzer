@@ -41,7 +41,7 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
 
     // Every 30 seconds, refresh data
     timer = Timer.periodic(
-      const Duration(seconds: 30),
+      const Duration(seconds: 10),
       (timer) => updateLotMap(),
     );
   }
@@ -56,12 +56,14 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
   // For each lot, get data from backend on how many spots available & then update UI.
   Future<void> updateLotMap() async {
     final data = await requests.fetchLotMap(currentLot.lotName);
-
-    if (data != null) {
+    final spots = await requests.fetchLotInfo(currentLot.lotName);
+    if (data != null && spots != null) {
       setState(() {
         // Updates UI
-        // Update lot map
+        // Update lot map/spots
         currentLot.lotMap = data;
+        currentLot = spots['available_spots'];
+        currentLot = spots['total_spots'];
       });
     }
   }
@@ -101,18 +103,37 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
                   if (currentLot.lotMap != null)
                     Column(
                       children: currentLot.lotMap!.map<Widget>((row) {
+                        // Check if any row has more than 8 spots, if so - halve width/height.
+                        final rowList = row as List;
+                        final bool shrink = currentLot.lotMap!.any((r) => (r as List).length > 8); 
+                        final double spotWidth = shrink ? 20 : 40;
+                        final double spotHeight = shrink ? 35 : 70;
                         return Column(
                           children: [
                             Row(
                               // create a physical row widget on the UI, its children are the individual spots...
                               mainAxisAlignment: MainAxisAlignment
                                   .center, // Align spots to center
-                              children: (row as List).map<Widget>((spot) {
-                                final occupied =
-                                    (spot as Map)['occupied'] == true;
+                              children: rowList.map<Widget>((spot) {
+                                // Get data on spot
+                                final spotMap = spot as Map;
+                                final spotID = spotMap['spot_id'];
+                                final occupied = spotMap['occupied'] == true;
+                                if (spotID >= 1000) // set to background color if its a null spot
+                                {
+                                  return Container(
+                                    width: spotWidth,
+                                    height: spotHeight,
+                                    margin: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: _cream, 
+                                    ),
+                                  );
+                                }
+                                
                                 return Container(
-                                  width: 40,
-                                  height: 70,
+                                  width: spotWidth,
+                                  height: spotHeight,
                                   margin: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
                                     color: occupied ? Colors.red : Colors.green,
@@ -128,17 +149,6 @@ class _LotsInfoScreenState extends State<LotsInfoScreen> {
                                 );
                               }).toList(),
                             ),
-                            // After every row of spots, add a parking line horizontally.
-                            if (row !=
-                                currentLot
-                                    .lotMap!
-                                    .last) // If row is NOT last row in list, add line
-                              Container(
-                                width: (row as List).length * (48),
-                                color: Colors.white,
-                                height: 5,
-                                margin: const EdgeInsets.symmetric(vertical: 1),
-                              ),
                           ],
                         );
                       }).toList(),
