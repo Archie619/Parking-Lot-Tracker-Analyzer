@@ -158,3 +158,114 @@ def calc_intersect_line_points(intersect_lines: list):
         intersect_line_points.append((x2, y2))
 
     return intersect_line_points
+
+
+
+'''
+Calculate the distance from a point to a FINITE line segment
+
+Inputs:
+    px: point x val
+    py: point y val
+    x1: point 1 x for line
+    y1: point 1 y for line
+    x2: point 2 x for line
+    y2: point 2 y for line
+
+Outputs:
+    dist: distance from the point to the finite line
+'''
+def point_to_finite_line_dist(px: int, py: int, x1: int, y1: int, x2: int, y2: int):
+    dx = x2 - x1
+    dy = y2 - y1
+
+    if dx == 0 and dy == 0:
+        return math.sqrt((px - x1)**2 + (py - y1)**2)
+    
+    seg_pos = max(0, min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
+
+    closest_x = x1 + (seg_pos * dx)
+    closest_y = y1 + (seg_pos * dy)
+
+    dist = math.sqrt((px - closest_x)**2 + (py - closest_y)**2)
+
+    return dist
+
+
+
+'''
+Clean fragment lines post-merge
+
+Inputs:
+    lines: list of line segments post-merge
+
+Outputs:
+    lines: cleansed list of lines with fragment lines removed
+'''
+def clean_fragment_lines(lines):
+
+    # remove any incomplete lines (lines that contain a None point)
+    i = 0
+    while i < len(lines):
+        x1, y1, x2, y2 = lines[i][0]
+        if x1 is None or y1 is None or x2 is None or y2 is None:
+            lines.pop(i)
+        else:
+            i += 1
+
+    # remove lines where the start AND end points are close to within the line
+    i = 0
+    while i < len(lines):
+        x1_1, y1_1, x2_1, y2_1 = lines[i][0]
+        j = 0
+        merged = False
+
+        while j < len(lines):
+            if i == j:
+                j += 1
+                continue
+            x1_2, y1_2, x2_2, y2_2 = lines[j][0]
+            
+            dist_from_start_i = point_to_finite_line_dist(x1_1, y1_1, x1_2, y1_2, x2_2, y2_2)
+            dist_from_end_i = point_to_finite_line_dist(x2_1, y2_1, x1_2, y1_2, x2_2, y2_2)
+            i_in_j = dist_from_start_i < 25 and dist_from_end_i < 25
+
+            dist_from_start_j = point_to_finite_line_dist(x1_2, y1_2, x1_1, y1_1, x2_1, y2_1)
+            dist_from_end_j = point_to_finite_line_dist(x2_2, y2_2, x1_1, y1_1, x2_1, y2_1)
+            j_in_i = dist_from_start_j < 25 and dist_from_end_j < 25
+
+            if i_in_j or j_in_i:
+                all_points = [(x1_1, y1_1), (x2_1, y2_1), (x1_2, y1_2), (x2_2, y2_2)]
+                max_dist = 0
+                best_pair = None
+
+                # make the longest line when merging; standardizing start and end
+                for p1 in all_points:
+                    for p2 in all_points:
+                        dy = abs(p2[1] - p1[1])
+                        dx = abs(p2[0] - p1[0])
+                        dist = math.sqrt(dx**2 + dy**2)
+                        if dist > max_dist:
+                            max_dist = dist
+                            if dy > dx:
+                                if p2[1] > p1[1]:
+                                    best_pair = (p1, p2)
+                                else:
+                                    best_pair = (p2, p1)
+                            else:
+                                if p2[0] > p1[0]:
+                                    best_pair = (p1, p2)
+                                else:
+                                    best_pair = (p2, p1)
+
+                lines[i] = [[best_pair[0][0], best_pair[0][1], best_pair[1][0], best_pair[1][1]]]
+                lines.pop(j)
+                merged = True
+                break
+
+            j += 1
+
+        if not merged:
+            i += 1
+
+    return lines

@@ -1,8 +1,6 @@
 import cv2, numpy
-from analysis.space_detection import define_spots, detect_fullness
-
-img_w = 800
-img_h = 444
+import logging
+from analysis.space_detection import define_spots, detect_fullness, img_w, img_h
 
 lots = []   
 lot_maps = {}
@@ -12,28 +10,26 @@ lot_previews = {}
 Show spots in a lot
 
 Inputs:
-    e_lot_img: empty image of lot
-    l_lot_img: live image of lot
+    e_lot_img: path to empty image of lot
+    l_lot_img: path to live image of lot
 
 Outputs:
     None
+
+Example:
+    show_detection_as_image(".\images\diag_PL2.jpg", ".\images\live_diag_PL2.jpg")
 '''
-def show_detection_as_image():
-    #########################################################
-    # THIS WILL BE REMOVED FOR A INPUT VARIABLE TO FUNCTION #
-    #########################################################
-    empty_lot = cv2.imread('.\images\diag_PL2.jpg', 1)
-    live_lot = cv2.imread('.\images\live_diag_PL2.jpg', 1)
-    #########################################################
+def show_detection_as_image(e_lot_img: str, l_lot_img: str):
+    
+    empty_lot = cv2.imread(e_lot_img, 1)
+    live_lot = cv2.imread(l_lot_img, 1)
 
     # resize images to appropriate size for analysis
     empty_lot = cv2.resize(empty_lot, (img_w, img_h))
     live_lot = cv2.resize(live_lot, (img_w, img_h))
 
-    cv2.imshow('Analysis', empty_lot)
-
     # identify spots from the empty lot image
-    spots = define_spots(empty_lot)   # NOTE: EVENTUALLY WILL NEED TO PASS IMG HERE
+    spots = define_spots(empty_lot)
 
     # now with our list of spot quadrilaterals, draw the spot
     # detection zones
@@ -51,9 +47,6 @@ def show_detection_as_image():
     
     # with spots marked we need to check if a car is in
     # the spot or not; use background subtraction
-    # NOTE: WE NEED TO KEEP A SAMPLE OF THE EMPTY LOT FOR ME TO DO THIS
-    #       i.e during initialization take a snap of the lot and store 
-    #       in DB
     spot_occupancy, a_spots, t_spots = detect_fullness(empty_lot, live_lot, 
                                                        (img_h, img_w), spots)
 
@@ -123,3 +116,4 @@ def begin_rolling_analysis():
                 lot_maps[lots[i]["name"]] = spot_map
                 lot_previews[lots[i]["name"]] = {'available': a_spots,
                                                 'total': t_spots}
+                logging.info(f"Lot {lots[i]['name']}'s detection information updated")

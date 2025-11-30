@@ -1,3 +1,7 @@
+# ignore frontend packages
+parkingtracker
+parkingtracker-evan
+
 # ignore python virtual environments
 .venv
 
